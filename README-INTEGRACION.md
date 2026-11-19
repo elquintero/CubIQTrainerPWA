@@ -1,35 +1,34 @@
-# CubIQ Trainer 3.0
+# CubIQ Trainer 3.1 · motor original integrado
 
-PWA de entrenamiento cognitivo local para los casos CFOP incluidos en `insight.js`.
+Esta edición incorpora copias directas de `src/cube-engine.js` y `src/insight.js` del ZIP de CubIQ 1.34.16 recibido el 19-11-2026.
 
-## Qué incorpora
+## Integración realizada
 
-1. **Reconocimiento visual**: presenta el patrón durante 1,5 s, lo oculta y ofrece cuatro casos de la misma familia. Registra acierto y latencia de respuesta.
-2. **Recuperación**: solicita nombre, chunks y algoritmo sin mostrar la solución. Compara nombre, secuencia y etiquetas de bloques.
-3. **Derivación**: busca relaciones algebraicas exactas entre algoritmos (inversa o espejo R/L). Solo propone automáticamente las coincidencias exactas; no deduce parentescos por nombre o similitud visual. La comprobación final es de secuencia algebraica. El espejo implementado invierte el sentido de giro de cada cara y permuta R/L; su correspondencia visual debe validarse con CM antes de considerarla una relación de casos garantizada.
-4. **Chunks**: divide algoritmos en motivos conocidos y bloques cortos. Durante ejecución mide tiempo por bloque e interrupciones declaradas por el usuario.
-5. **Adaptación**: prioriza reconocimiento cuando la tasa de acierto es baja, recuperación cuando falla el recuerdo y ejecución cuando hay interrupciones registradas.
-6. **Intercalado**: prepara una sesión aleatoria con varios casos de una misma familia para practicar discriminación dentro de una misma familia; no calcula todavía similitud visual entre patrones.
+- `cube-engine.js`: motor real de 54 pegatinas, movimientos, firmas y clonación.
+- `insight.js`: tablas originales CFOP, orientación `HOLD`, generación de `setup`, `shown`, `steps` e iconos SVG.
+- Antes de importar `insight.js`, el Trainer registra `globalThis.CM` y `window.CM` como objeto API del motor con la paleta base de CubIQ. `CM` es un objeto, no una función.
+- OLL, PLL, EOLL, OCLL, CPLL y EPLL usan los iconos SVG generados por `getCase()`/`caseIcon()` del análisis original.
+- F2L usa `getCase()` y la pareja real (`pair`) calculada por el motor; el análisis original no define un icono SVG F2L.
+- Se cachea cada `getCase()` para no recalcular los casos en cada render.
 
-## Integración del simulador CM (necesaria para patrones reales)
-
-`insight.js` exporta `getCase(kind,id)` y `GROUPS`, pero depende de `CM()` para crear el estado real del cubo. Este paquete no incluye el módulo que registra `window.CM`. Carga el módulo real del proyecto CubIQ **antes** de que se ejecute `insight.js`, o adapta su exportación para exponer `window.CM`.
-
-Mientras `CM` no esté disponible, la app muestra un aviso explícito en el ejercicio de reconocimiento. No dibuja patrones ficticios. Los algoritmos y las etiquetas proceden de `insight.js`.
-
-## Límites deliberados
-
-- La latencia de reconocimiento se mide desde que desaparece el patrón hasta la respuesta.
-- La ejecución de chunks se cronometra con el botón de finalización; la interrupción es autodeclarada. No equivale a una medición de movimiento del smart cube.
-- La derivación automática compara transformaciones de notación. No afirma que dos casos sean equivalentes en todas las orientaciones del cubo; para eso se necesita validar estados con CM y metadatos de orientación.
-- El intercalado agrupa por familia CFOP, no por distancia visual calculada.
-- Las reglas adaptativas son heurísticas iniciales, transparentes y locales; no están clínicamente ni experimentalmente validadas.
-- Los datos permanecen en `localStorage`. Exporta regularmente una copia desde Progreso.
-
-## Desarrollo
+## Ejecutar
 
 ```bash
 npm install
 npm run dev
-npm run build
 ```
+
+## Verificación de integración
+
+```bash
+npm run test:integration
+```
+
+La prueba recorre los 135 casos y comprueba que se genera un estado de 54 pegatinas y un `setup`; también verifica iconos SVG en las familias con icono y pareja en F2L.
+
+## Límites que siguen pendientes
+
+- El Trainer mide chunks con confirmación manual; el cubo BLE no está conectado en esta versión.
+- La relación inversa/espejo sigue siendo una transformación textual exacta, no una derivación validada por equivalencia de estados del cubo.
+- La paleta es la base de CubIQ; el Trainer independiente no hereda cambios de colores del usuario en la app principal.
+- No se ha completado `npm run build` en este entorno: la instalación de Vite no terminó. La sintaxis de los módulos y la prueba de integración sí se han comprobado.
