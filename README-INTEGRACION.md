@@ -1,38 +1,35 @@
-# CubIQ Trainer 2.0 — integración con CubIQ
+# CubIQ Trainer 3.0
 
-## Qué ya está conectado
+PWA de entrenamiento cognitivo local para los casos CFOP incluidos en `insight.js`.
 
-- `insight.js` es la copia del archivo que has facilitado. La biblioteca de algoritmos se obtiene directamente de `GROUPS`.
-- Los iconos de OLL/PLL/EOLL/OCLL se solicitan a `getCase(kind,id).icon`, que a su vez utiliza `caseIcon()` y el simulador `CM`. Si `CM` no está cargado, la interfaz muestra un aviso y **no dibuja patrones de sustitución**.
-- Los chunks se detectan mediante coincidencias de sub-secuencias (triggers frecuentes y microbloques). Las mnemotecnias se generan como lectura verbal de los giros. Son propuestas editables, no interpretaciones semánticas certificadas.
-- El motor de tiempos calcula intervalos entre giros, mediana móvil y vacilaciones. La guía se puede retirar tras tres giros correctos consecutivos y sin pausa anómala.
+## Qué incorpora
 
-## Dependencia pendiente: cargar el simulador real
+1. **Reconocimiento visual**: presenta el patrón durante 1,5 s, lo oculta y ofrece cuatro casos de la misma familia. Registra acierto y latencia de respuesta.
+2. **Recuperación**: solicita nombre, chunks y algoritmo sin mostrar la solución. Compara nombre, secuencia y etiquetas de bloques.
+3. **Derivación**: busca relaciones algebraicas exactas entre algoritmos (inversa o espejo R/L). Solo propone automáticamente las coincidencias exactas; no deduce parentescos por nombre o similitud visual. La comprobación final es de secuencia algebraica. El espejo implementado invierte el sentido de giro de cada cara y permuta R/L; su correspondencia visual debe validarse con CM antes de considerarla una relación de casos garantizada.
+4. **Chunks**: divide algoritmos en motivos conocidos y bloques cortos. Durante ejecución mide tiempo por bloque e interrupciones declaradas por el usuario.
+5. **Adaptación**: prioriza reconocimiento cuando la tasa de acierto es baja, recuperación cuando falla el recuerdo y ejecución cuando hay interrupciones registradas.
+6. **Intercalado**: prepara una sesión aleatoria con varios casos de una misma familia para practicar discriminación dentro de una misma familia; no calcula todavía similitud visual entre patrones.
 
-El archivo `insight.js` declara `CM = () => globalThis.CM || window.CM`. No contiene la implementación del cubo. Antes de importar/usar `getCase`, CubIQ debe registrar la misma función `CM` que usa la aplicación principal:
+## Integración del simulador CM (necesaria para patrones reales)
 
-```js
-// En el punto de entrada del proyecto, ANTES de cargar el Trainer:
-import { CM } from './RUTA_REAL_DEL_PROYECTO/cube-model.js';
-window.CM = CM;
+`insight.js` exporta `getCase(kind,id)` y `GROUPS`, pero depende de `CM()` para crear el estado real del cubo. Este paquete no incluye el módulo que registra `window.CM`. Carga el módulo real del proyecto CubIQ **antes** de que se ejecute `insight.js`, o adapta su exportación para exponer `window.CM`.
+
+Mientras `CM` no esté disponible, la app muestra un aviso explícito en el ejercicio de reconocimiento. No dibuja patrones ficticios. Los algoritmos y las etiquetas proceden de `insight.js`.
+
+## Límites deliberados
+
+- La latencia de reconocimiento se mide desde que desaparece el patrón hasta la respuesta.
+- La ejecución de chunks se cronometra con el botón de finalización; la interrupción es autodeclarada. No equivale a una medición de movimiento del smart cube.
+- La derivación automática compara transformaciones de notación. No afirma que dos casos sean equivalentes en todas las orientaciones del cubo; para eso se necesita validar estados con CM y metadatos de orientación.
+- El intercalado agrupa por familia CFOP, no por distancia visual calculada.
+- Las reglas adaptativas son heurísticas iniciales, transparentes y locales; no están clínicamente ni experimentalmente validadas.
+- Los datos permanecen en `localStorage`. Exporta regularmente una copia desde Progreso.
+
+## Desarrollo
+
+```bash
+npm install
+npm run dev
+npm run build
 ```
-
-La ruta y el nombre del módulo son ilustrativos: no se han inventado porque no has adjuntado el archivo que define `CM`. Debe devolver al menos los miembros que `insight.js` consume: `COL`, `solvedCube`, `FACES`, `NAME`, `mv`, `clone`, `sig`, `isSolved`.
-
-Si tu `CM` está en un script clásico, basta con que asigne `window.CM` antes de cargar `index.html`/`insight.js`. No dupliques el simulador: usa el mismo core de CubIQ para que los casos coincidan exactamente.
-
-## Cubo inteligente: adaptador incluido
-
-He añadido `cube-bridge.js` usando la dependencia que ya utiliza CubIQ: `smartcube-web-bluetooth` de `poliva`. Se conecta mediante `connectSmartCube()` y escucha `conn.events$`; solo procesa eventos `MOVE` cuyo `event.move` ya venga normalizado (`R`, `R'`, `R2`, etc.). El timestamp se toma con `performance.now()` al recibir cada evento para medir intervalos de forma monotónica.
-
-La biblioteca declara soporte para GAN, Giiker/Mi, GoCube/Rubik's Connected, MoYu y QiYi. La conexión real debe probarse con tu modelo concreto y navegador (Chrome/Edge, HTTPS o localhost). La librería es dirigida por eventos y expone `events$` como Observable. Referencia: https://github.com/poliva/smartcube-web-bluetooth.
-
-Los movimientos aceptados por el entrenador son `R L U D F B` con sufijo opcional `2` o `'`. No se infiere el sentido a partir de `face/direction`: se utiliza `event.move` para evitar invertir giros. El adaptador desuscribe el Observable y usa `disconnect()` si la conexión lo expone; si no, intenta cerrar el GATT del dispositivo.
-
-## Ejecutar
-
-Sirve la carpeta desde `localhost` o HTTPS (por ejemplo `npx vite --host 0.0.0.0`). Las PWA y Web Bluetooth requieren contexto seguro; `localhost` es válido para desarrollo. Para instalación, publica la carpeta completa conservando rutas relativas.
-
-## Importante: estado de integración
-
-La PWA ya tiene los puntos de integración y el manejo de datos, pero **no puede completar una conexión física real** hasta incorporar el módulo exacto de `CM` y el driver BLE de tu proyecto. Para cerrar esa última parte necesito que compartas el archivo que define `CM`/el modelo de cubo y el código actual que conecta el smart cube (o el paquete/versión y el wrapper que ya usa CubIQ). No se deben inventar UUID, servicios ni movimientos.
